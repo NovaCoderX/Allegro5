@@ -6,8 +6,12 @@ API the Amiga build of Dune Dynasty 1.5.7 links against: 150 functions, plus
 AmigaOS 3.x with RTG one module at a time; the rest are still stubs, so the
 game always compiles and links.
 
-This directory is self-contained so it can be moved into the
-[NovaCoderX/Allegro5](https://github.com/NovaCoderX/Allegro5) repository.
+It was developed inside the Dune Dynasty port
+([NovaCoderX/DuneDynasty](https://github.com/NovaCoderX/DuneDynasty)),
+which expects this repository checked out beside it as `Allegro5`: its
+`amiga_build` takes `include/` and `lib/` from `../Allegro5`, and its host
+tests of this library (`test/wrapper_audio`, `test/wrapper_threads`)
+compile `src/` from there (their `A5` variable).
 
 ## Layout
 
@@ -326,14 +330,16 @@ mixers. The game's state changes under `SDL_LockAudioDevice()`; the
 callback takes the events lock only to emit, and the main task never holds
 the events lock while it locks the device.
 
-Tested on the host (`test/wrapper_audio`): `mixer_test` renders mixers
+Tested on the host (Dune Dynasty's `test/wrapper_audio`): `mixer_test` renders mixers
 directly and checks 1.85 million output values against a float model of
 Allegro's mixer (6 sample rates, gains up to 1.4, 6 pans, mono and stereo
 streams, fragment cycling and events, clipping): all within 2, clean under
 AddressSanitizer and UBSan. `stream_test` plays Dune II's AdLib music
 through a stream on SDL's disk driver the way the game does; the device's
 output is the player's PCM times the gain to within 1, with no fragment
-lost or repeated.
+lost or repeated. `starve_test` leaves a stream unfilled for 2 s, as
+during a load: the queue holds at most one event per fragment (4), where
+it used to gain 4 on every callback (172 in the 2 s).
 
 ### Threads (`threads.c`)
 
@@ -344,7 +350,7 @@ and Dune Dynasty's MIDI thread keeps its music buffer on the stack).
 `al_join_thread()` sets the thread's should-stop flag and waits for it;
 `al_destroy_thread()` joins first. The flag is an SDL atomic.
 
-Tested on the host (`test/wrapper_threads`) with the game's own MIDI
+Tested on the host (Dune Dynasty's `test/wrapper_threads`) with the game's own MIDI
 player: `mt32mpu.c` on a thread with a 120 Hz Allegro timer, as
 `audio_a5.c` runs it, against the same tracks played without threads. The
 messages are the same, in the same order, each within a few ms of its
